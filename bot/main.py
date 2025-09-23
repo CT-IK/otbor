@@ -2,6 +2,7 @@ import asyncio
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.filters import Command
+from aiogram.fsm.storage.memory import MemoryStorage
 from config import settings
 from filters import HasRoleFilter
 from roles import Role
@@ -10,7 +11,8 @@ from invite_handler import router as invite_router
 
 
 bot = Bot(token=settings.bot_token)
-dp = Dispatcher()
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 
 # Подключаем роутеры
 dp.include_router(superadmin_router)
@@ -19,8 +21,16 @@ dp.include_router(invite_router)
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    # Обработка /start перенаправляется в superadmin_handlers или invite_handler
-    pass
+    """Обработка /start без аргументов - показываем главное меню суперадмина"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📋 Факультеты", callback_data="faculties_menu")],
+        [InlineKeyboardButton(text="👥 Админы", callback_data="admins_menu")],
+        [InlineKeyboardButton(text="📊 Google таблицы", callback_data="sheets_menu")],
+        [InlineKeyboardButton(text="ℹ️ Справка", callback_data="help")]
+    ])
+    await message.answer("🔧 Панель суперадмина", reply_markup=keyboard)
 
 
 @dp.message(Command("whoami"), HasRoleFilter([Role.SUPERADMIN]))

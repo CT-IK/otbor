@@ -4,12 +4,23 @@ from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy import select, insert, update
 from db import AsyncSessionLocal
 from models import Faculty, AdminInvite, User
 from roles import Role
+from filters import HasRoleFilter
 
 router = Router()
+
+
+class FacultyStates(StatesGroup):
+    waiting_faculty_name = State()
+
+
+class SheetStates(StatesGroup):
+    waiting_sheet_url = State()
 
 
 def generate_invite_code() -> str:
@@ -17,19 +28,10 @@ def generate_invite_code() -> str:
     return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
 
 
-@router.message(Command("start"))
-async def superadmin_main_menu(message: Message):
-    """Главное меню суперадмина"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Факультеты", callback_data="faculties_menu")],
-        [InlineKeyboardButton(text="👥 Админы", callback_data="admins_menu")],
-        [InlineKeyboardButton(text="📊 Google таблицы", callback_data="sheets_menu")],
-        [InlineKeyboardButton(text="ℹ️ Справка", callback_data="help")]
-    ])
-    await message.answer("🔧 Панель суперадмина", reply_markup=keyboard)
+# Убираем обработчик /start отсюда, он теперь в main.py
 
 
-@router.callback_query(F.data == "faculties_menu")
+@router.callback_query(F.data == "faculties_menu", HasRoleFilter([Role.SUPERADMIN]))
 async def faculties_menu(callback: CallbackQuery):
     """Меню факультетов"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -41,7 +43,7 @@ async def faculties_menu(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.callback_query(F.data == "admins_menu")
+@router.callback_query(F.data == "admins_menu", HasRoleFilter([Role.SUPERADMIN]))
 async def admins_menu(callback: CallbackQuery):
     """Меню админов"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -53,7 +55,7 @@ async def admins_menu(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.callback_query(F.data == "sheets_menu")
+@router.callback_query(F.data == "sheets_menu", HasRoleFilter([Role.SUPERADMIN]))
 async def sheets_menu(callback: CallbackQuery):
     """Меню Google таблиц"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -64,7 +66,7 @@ async def sheets_menu(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.callback_query(F.data == "back_to_main")
+@router.callback_query(F.data == "back_to_main", HasRoleFilter([Role.SUPERADMIN]))
 async def back_to_main(callback: CallbackQuery):
     """Возврат в главное меню"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -77,9 +79,10 @@ async def back_to_main(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.callback_query(F.data == "create_faculty")
-async def create_faculty_start(callback: CallbackQuery):
+@router.callback_query(F.data == "create_faculty", HasRoleFilter([Role.SUPERADMIN]))
+async def create_faculty_start(callback: CallbackQuery, state: FSMContext):
     """Начало создания факультета"""
+    await state.set_state(FacultyStates.waiting_faculty_name)
     await callback.message.edit_text(
         "📝 Введите название факультета:\n\n"
         "Пример: ФКН, ФИВТ, ФУПМ"
@@ -87,8 +90,8 @@ async def create_faculty_start(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.message(F.text.regexp(r'^[А-ЯЁ][А-ЯЁа-яё\s]+$'))
-async def create_faculty_process(message: Message):
+@router.message(FacultyStates.waiting_faculty_name, F.text.regexp(r'^[А-ЯЁ][А-ЯЁа-яё\s]+$'))
+async def create_faculty_process(message: Message, state: FSMContext):
     """Обработка создания факультета"""
     faculty_name = message.text.strip()
     
@@ -114,9 +117,10 @@ async def create_faculty_process(message: Message):
             f"✅ Факультет '{faculty_name}' создан!\nID: {faculty.id}",
             reply_markup=keyboard
         )
+        await state.clear()
 
 
-@router.callback_query(F.data == "list_faculties")
+@router.callback_query(F.data == "list_faculties", HasRoleFilter([Role.SUPERADMIN]))
 async def list_faculties(callback: CallbackQuery):
     """Список факультетов"""
     async with AsyncSessionLocal() as session:
@@ -140,7 +144,7 @@ async def list_faculties(callback: CallbackQuery):
         await callback.answer()
 
 
-@router.callback_query(F.data == "create_invite")
+@router.callback_query(F.data == "create_invite", HasRoleFilter([Role.SUPERADMIN]))
 async def create_invite_start(callback: CallbackQuery):
     """Начало создания приглашения"""
     async with AsyncSessionLocal() as session:
@@ -165,7 +169,7 @@ async def create_invite_start(callback: CallbackQuery):
         await callback.answer()
 
 
-@router.callback_query(F.data.startswith("invite_faculty_"))
+@router.callback_query(F.data.startswith("invite_faculty_"), HasRoleFilter([Role.SUPERADMIN]))
 async def create_invite_process(callback: CallbackQuery):
     """Создание приглашения для выбранного факультета"""
     faculty_id = int(callback.data.split("_")[2])
@@ -209,7 +213,7 @@ async def create_invite_process(callback: CallbackQuery):
         await callback.answer()
 
 
-@router.callback_query(F.data == "list_invites")
+@router.callback_query(F.data == "list_invites", HasRoleFilter([Role.SUPERADMIN]))
 async def list_invites(callback: CallbackQuery):
     """Список активных приглашений"""
     async with AsyncSessionLocal() as session:
@@ -236,7 +240,7 @@ async def list_invites(callback: CallbackQuery):
         await callback.answer()
 
 
-@router.callback_query(F.data == "set_sheet")
+@router.callback_query(F.data == "set_sheet", HasRoleFilter([Role.SUPERADMIN]))
 async def set_sheet_start(callback: CallbackQuery):
     """Начало привязки Google таблицы"""
     async with AsyncSessionLocal() as session:
@@ -261,8 +265,8 @@ async def set_sheet_start(callback: CallbackQuery):
         await callback.answer()
 
 
-@router.callback_query(F.data.startswith("sheet_faculty_"))
-async def set_sheet_process(callback: CallbackQuery):
+@router.callback_query(F.data.startswith("sheet_faculty_"), HasRoleFilter([Role.SUPERADMIN]))
+async def set_sheet_process(callback: CallbackQuery, state: FSMContext):
     """Привязка Google таблицы к выбранному факультету"""
     faculty_id = int(callback.data.split("_")[2])
     
@@ -275,6 +279,8 @@ async def set_sheet_process(callback: CallbackQuery):
             await callback.answer()
             return
         
+        await state.set_state(SheetStates.waiting_sheet_url)
+        await state.update_data(faculty_id=faculty_id)
         await callback.message.edit_text(
             f"📊 Введите URL Google таблицы для факультета '{faculty.name}':\n\n"
             f"Пример: https://docs.google.com/spreadsheets/d/..."
@@ -282,17 +288,41 @@ async def set_sheet_process(callback: CallbackQuery):
         await callback.answer()
 
 
-@router.message(F.text.regexp(r'^https://docs\.google\.com/spreadsheets/'))
-async def set_sheet_url(message: Message):
+@router.message(SheetStates.waiting_sheet_url, F.text.regexp(r'^https://docs\.google\.com/spreadsheets/'))
+async def set_sheet_url(message: Message, state: FSMContext):
     """Обработка URL Google таблицы"""
     sheet_url = message.text.strip()
+    data = await state.get_data()
+    faculty_id = data.get('faculty_id')
     
-    # Извлекаем faculty_id из контекста (упрощенно)
-    # В реальном боте нужно хранить состояние пользователя
-    await message.answer("📊 URL получен! Функция привязки таблицы будет доработана.")
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Faculty).where(Faculty.id == faculty_id))
+        faculty = result.scalar_one_or_none()
+        
+        if not faculty:
+            await message.answer("❌ Факультет не найден!")
+            await state.clear()
+            return
+        
+        # Обновляем URL таблицы
+        await session.execute(
+            update(Faculty)
+            .where(Faculty.id == faculty_id)
+            .values(google_sheet_url=sheet_url)
+        )
+        await session.commit()
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_main")]
+        ])
+        await message.answer(
+            f"✅ Google таблица привязана к факультету '{faculty.name}'",
+            reply_markup=keyboard
+        )
+        await state.clear()
 
 
-@router.callback_query(F.data == "help")
+@router.callback_query(F.data == "help", HasRoleFilter([Role.SUPERADMIN]))
 async def help_menu(callback: CallbackQuery):
     """Справка"""
     help_text = """
