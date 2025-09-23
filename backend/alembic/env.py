@@ -12,8 +12,12 @@ from app.db.base import Base  # noqa: E402
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# Disable Alembic's fileConfig as our alembic.ini has no logging sections
+# This avoids KeyError: 'formatters' during container startup
+# If you want logging via alembic.ini, add [loggers]/[handlers]/[formatters]
+# and re-enable fileConfig below.
+# if config.config_file_name is not None:
+#     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
