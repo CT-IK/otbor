@@ -2,7 +2,7 @@ import asyncio
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.filters import Command
-from bot.config import settings
+from config import settings
 from filters import HasRoleFilter
 from roles import Role
 

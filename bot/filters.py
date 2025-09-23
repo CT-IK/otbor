@@ -2,7 +2,7 @@ from aiogram.filters import BaseFilter
 from aiogram.types import Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from bot.db import AsyncSessionLocal
+from db import AsyncSessionLocal
 from roles import Role
 from app.models.user import User  # type: ignore
 
