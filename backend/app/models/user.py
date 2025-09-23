@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, Boolean, ForeignKey
 from app.db.base import Base
+from typing import Optional
 
 
 class User(Base):
@@ -16,5 +17,5 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     timeslots: Mapped[list["TimeSlot"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    faculty: Mapped["Faculty" | None] = relationship(back_populates="users")
+    faculty: Mapped[Optional["Faculty"]] = relationship(back_populates="users")
 
