@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from db import AsyncSessionLocal
 from roles import Role
-from app.models.user import User  # type: ignore
+from models import User
 
 
 class HasRoleFilter(BaseFilter):
