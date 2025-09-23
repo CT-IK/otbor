@@ -1,5 +1,5 @@
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Integer, Boolean
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import String, Integer, Boolean, ForeignKey, Text
 
 
 class Base(DeclarativeBase):
@@ -17,4 +17,22 @@ class User(Base):
     faculty_id: Mapped[int | None]
     role: Mapped[str] = mapped_column(String(50))
     is_active: Mapped[bool] = mapped_column(Boolean)
+
+
+class Faculty(Base):
+    __tablename__ = "faculties"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(150), unique=True)
+    google_sheet_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class AdminInvite(Base):
+    __tablename__ = "admin_invites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    faculty_id: Mapped[int] = mapped_column(ForeignKey("faculties.id"))
+    invite_code: Mapped[str] = mapped_column(String(50), unique=True)
+    is_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[str] = mapped_column(String(50))  # ISO datetime string
 

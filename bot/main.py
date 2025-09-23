@@ -5,20 +5,27 @@ from aiogram.filters import Command
 from config import settings
 from filters import HasRoleFilter
 from roles import Role
+from superadmin_handlers import router as superadmin_router
+from invite_handler import router as invite_router
 
 
 bot = Bot(token=settings.bot_token)
 dp = Dispatcher()
 
+# Подключаем роутеры
+dp.include_router(superadmin_router)
+dp.include_router(invite_router)
+
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    await message.answer("Привет! Я бот записи. Доступные команды: /whoami")
+    # Обработка /start перенаправляется в superadmin_handlers или invite_handler
+    pass
 
 
 @dp.message(Command("whoami"), HasRoleFilter([Role.SUPERADMIN]))
 async def whoami_super(message: Message):
-    await message.answer("Ты — суперадмин")
+    await message.answer("Ты — суперадмин. Используй /help_superadmin для списка команд.")
 
 
 @dp.message(Command("whoami"), HasRoleFilter([Role.ADMIN]))
