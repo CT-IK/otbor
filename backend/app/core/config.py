@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -6,8 +6,7 @@ class Settings(BaseSettings):
     database_async_url: str | None = None  # async URL for app (asyncpg)
     backend_cors_origins: str = "*"
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()
