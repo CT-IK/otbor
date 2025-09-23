@@ -1,7 +1,8 @@
 from datetime import date, time
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from app.db.session import SessionLocal
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.session import get_db
 from app.models.timeslot import TimeSlot
 from app.models.user import User
 
@@ -9,20 +10,13 @@ from app.models.user import User
 router = APIRouter()
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @router.get("/timeslots/{username}")
-def get_timeslots(username: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == username).first()
+async def get_timeslots(username: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    slots = db.query(TimeSlot).filter(TimeSlot.user_id == user.id).all()
+    slots = (await db.execute(select(TimeSlot).where(TimeSlot.user_id == user.id))).scalars().all()
     return [
         {
             "id": s.id,
@@ -36,22 +30,31 @@ def get_timeslots(username: str, db: Session = Depends(get_db)):
 
 
 @router.post("/timeslots/{username}")
-def upsert_timeslot(username: str, slot_date: date, start: time, end: time, is_gas: bool, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == username).first()
+async def upsert_timeslot(
+    username: str,
+    slot_date: date,
+    start: time,
+    end: time,
+    is_gas: bool,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    slot = (
-        db.query(TimeSlot)
-        .filter(TimeSlot.user_id == user.id, TimeSlot.slot_date == slot_date, TimeSlot.start_time == start)
-        .first()
+    slot_result = await db.execute(
+        select(TimeSlot).where(
+            TimeSlot.user_id == user.id, TimeSlot.slot_date == slot_date, TimeSlot.start_time == start
+        )
     )
+    slot = slot_result.scalar_one_or_none()
     if not slot:
         slot = TimeSlot(user_id=user.id, slot_date=slot_date, start_time=start, end_time=end, is_gas=is_gas)
         db.add(slot)
     else:
         slot.end_time = end
         slot.is_gas = is_gas
-    db.commit()
-    db.refresh(slot)
+    await db.commit()
+    await db.refresh(slot)
     return {"id": slot.id}
 
