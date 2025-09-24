@@ -88,9 +88,10 @@ async def check_all_sheets(callback: CallbackQuery):
         if not getattr(f, "google_sheet_url", None):
             lines.append(f"• {f.name}: ⚠️ ссылка не задана")
             continue
-        ok, msg = check_access(credentials_path, f.google_sheet_url)
+        ok, msg, title = check_access(credentials_path, f.google_sheet_url)
         status = "✅" if ok else "❌"
-        lines.append(f"• {f.name}: {status} {'' if ok else msg[:80]}")
+        suffix = f" (таблица: {title})" if ok and title else (f" — {msg[:80]}" if not ok else "")
+        lines.append(f"• {f.name}: {status}{suffix}")
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 Назад", callback_data="sheets_menu")]
