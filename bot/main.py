@@ -19,9 +19,9 @@ dp.include_router(superadmin_router)
 dp.include_router(invite_router)
 
 
-@dp.message(Command("start"))
-async def cmd_start(message: Message):
-    """Обработка /start без аргументов - показываем главное меню суперадмина"""
+@dp.message(Command("start"), HasRoleFilter([Role.SUPERADMIN]))
+async def cmd_start_superadmin(message: Message):
+    """Обработка /start для суперадмина - показываем главное меню"""
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -31,6 +31,18 @@ async def cmd_start(message: Message):
         [InlineKeyboardButton(text="ℹ️ Справка", callback_data="help")]
     ])
     await message.answer("🔧 Панель суперадмина", reply_markup=keyboard)
+
+
+@dp.message(Command("start"), HasRoleFilter([Role.ADMIN]))
+async def cmd_start_admin(message: Message):
+    """Обработка /start для админа факультета"""
+    await message.answer("👋 Добро пожаловать! Вы админ факультета. Используйте /whoami для проверки роли.")
+
+
+@dp.message(Command("start"))
+async def cmd_start_default(message: Message):
+    """Обработка /start для неавторизованных пользователей"""
+    await message.answer("Добро пожаловать! Обратитесь к администратору для получения доступа.")
 
 
 @dp.message(Command("whoami"), HasRoleFilter([Role.SUPERADMIN]))

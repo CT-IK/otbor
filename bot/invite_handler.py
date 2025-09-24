@@ -1,12 +1,22 @@
+import secrets
+import string
 from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters import CommandStart
 from sqlalchemy import select, update
+from passlib.hash import bcrypt
 from db import AsyncSessionLocal
-from models import AdminInvite, User
+from models import AdminInvite, User, Faculty
 from roles import Role
 
 router = Router()
+
+
+def generate_credentials():
+    """Генерирует логин и пароль для админа"""
+    login = f"admin_{secrets.randbelow(10000):04d}"
+    password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+    return login, password
 
 
 @router.message(CommandStart())
@@ -54,10 +64,24 @@ async def handle_start_with_invite(message: Message):
             await message.answer("❌ Вы уже зарегистрированы в системе!")
             return
         
+        # Получаем информацию о факультете
+        faculty_result = await session.execute(
+            select(Faculty).where(Faculty.id == invite.faculty_id)
+        )
+        faculty = faculty_result.scalar_one_or_none()
+        
+        if not faculty:
+            await message.answer("❌ Факультет не найден!")
+            return
+        
+        # Генерируем логин и пароль для сайта
+        login, password = generate_credentials()
+        password_hash = bcrypt.hash(password)
+        
         # Создаем пользователя-админа факультета
         admin_user = User(
-            username=f"admin_{message.from_user.id}",
-            password_hash="",  # Пароль не нужен для бота
+            username=login,
+            password_hash=password_hash,
             full_name=f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip(),
             tg_id=str(message.from_user.id),
             faculty_id=invite.faculty_id,
@@ -75,9 +99,14 @@ async def handle_start_with_invite(message: Message):
         )
         
         await session.commit()
+        await session.refresh(admin_user)
         
         await message.answer(
-            f"✅ Добро пожаловать! Вы назначены администратором факультета.\n"
-            f"Ваш ID: {admin_user.id}\n"
-            f"Используйте /whoami для проверки роли."
+            f"🎉 Добро пожаловать!\n\n"
+            f"📋 Вы назначены администратором факультета: **{faculty.name}**\n\n"
+            f"🌐 Данные для входа на сайт:\n"
+            f"👤 Логин: `{login}`\n"
+            f"🔑 Пароль: `{password}`\n\n"
+            f"💡 Сохраните эти данные! Они понадобятся для входа на сайт.",
+            parse_mode="Markdown"
         )
