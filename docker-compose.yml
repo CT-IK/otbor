@@ -41,6 +41,8 @@ services:
     depends_on:
       - postgres
     restart: unless-stopped
+    volumes:
+      - ./bot/credentials.json:/app/bot/credentials.json:ro
 
 volumes:
   pgdata:

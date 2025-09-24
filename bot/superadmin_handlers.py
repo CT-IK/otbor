@@ -11,6 +11,7 @@ from db import AsyncSessionLocal
 from models import Faculty, AdminInvite, User
 from roles import Role
 from filters import HasRoleFilter
+from gsheets import check_access
 
 router = Router()
 
@@ -60,9 +61,41 @@ async def sheets_menu(callback: CallbackQuery):
     """Меню Google таблиц"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔗 Привязать таблицу", callback_data="set_sheet")],
+        [InlineKeyboardButton(text="✅ Проверить доступы", callback_data="check_sheets")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main")]
     ])
     await callback.message.edit_text("📊 Управление Google таблицами", reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "check_sheets", HasRoleFilter([Role.SUPERADMIN]))
+async def check_all_sheets(callback: CallbackQuery):
+    """Проверяем доступ ко всем привязанным таблицам"""
+    # credentials.json должен лежать в /app/bot/credentials.json (смонтируй файл в контейнер)
+    credentials_path = "/app/bot/credentials.json"
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Faculty))
+        faculties = result.scalars().all()
+
+    if not faculties:
+        await callback.message.edit_text("❌ Факультеты не найдены")
+        await callback.answer()
+        return
+
+    lines = ["Проверка доступов к Google Sheets:\n"]
+    for f in faculties:
+        if not getattr(f, "google_sheet_url", None):
+            lines.append(f"• {f.name}: ⚠️ ссылка не задана")
+            continue
+        ok, msg = check_access(credentials_path, f.google_sheet_url)
+        status = "✅" if ok else "❌"
+        lines.append(f"• {f.name}: {status} {'' if ok else msg[:80]}")
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="sheets_menu")]
+    ])
+    await callback.message.edit_text("\n".join(lines), reply_markup=keyboard)
     await callback.answer()
 
 
