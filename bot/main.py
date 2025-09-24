@@ -58,7 +58,7 @@ from roles import Role
 from passlib.hash import bcrypt
 import gsheets
 from sqlalchemy import select
-from backend.app.models.candidate import Candidate
+from models import Candidate
 
 @dp.callback_query(F.data == "import_faculty_data", HasRoleFilter([Role.ADMIN]))
 async def import_faculty_data_handler(callback: CallbackQuery):

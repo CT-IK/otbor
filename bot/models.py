@@ -1,3 +1,17 @@
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Integer, String, ForeignKey
+
+
+class Candidate(Base):
+    __tablename__ = "candidates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    vk_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    tg_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True)
+    faculty_id: Mapped[int] = mapped_column(ForeignKey("faculties.id"), nullable=True)
+
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, Boolean, ForeignKey, Text
 
