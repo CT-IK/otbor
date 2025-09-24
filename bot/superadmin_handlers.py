@@ -197,7 +197,7 @@ async def create_invite_process(callback: CallbackQuery):
         await session.commit()
         
         # Формируем ссылку
-        invite_link = f"https://t.me/your_bot_username?start=admin_{invite_code}"
+        invite_link = f"https://t.me/otbor_2025_bot?start=admin_{invite_code}"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔙 Назад", callback_data="admins_menu")]
