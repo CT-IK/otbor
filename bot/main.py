@@ -15,8 +15,8 @@ storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
 # Подключаем роутеры
+dp.include_router(invite_router)  # Сначала invite_router для обработки /start с аргументами
 dp.include_router(superadmin_router)
-dp.include_router(invite_router)
 
 
 @dp.message(Command("start"), HasRoleFilter([Role.SUPERADMIN]))
