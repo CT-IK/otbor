@@ -8,6 +8,7 @@ from filters import HasRoleFilter
 from roles import Role
 from superadmin_handlers import router as superadmin_router
 from invite_handler import router as invite_router
+from admin_claim import router as claim_router
 
 
 bot = Bot(token=settings.bot_token)
@@ -16,6 +17,7 @@ dp = Dispatcher(storage=storage)
 
 # Подключаем роутеры
 dp.include_router(invite_router)  # Сначала invite_router для обработки /start с аргументами
+dp.include_router(claim_router)
 dp.include_router(superadmin_router)
 
 
