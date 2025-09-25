@@ -9,7 +9,17 @@ from roles import Role
 from superadmin_handlers import router as superadmin_router
 from invite_handler import router as invite_router
 from admin_claim import router as claim_router
+# Обработчик кнопки "Занести данные"
+from aiogram import Router
+from aiogram.types import CallbackQuery
+from db import AsyncSessionLocal
+from models import User, Faculty
+from roles import Role
 
+import gsheets
+from gsheets import import_faculty_spreadsheet
+from sqlalchemy import select
+from models import Candidate
 
 bot = Bot(token=settings.bot_token)
 storage = MemoryStorage()
@@ -49,16 +59,7 @@ async def cmd_start_admin(message: Message):
     )
 
 
-# Обработчик кнопки "Занести данные"
-from aiogram import Router
-from aiogram.types import CallbackQuery
-from db import AsyncSessionLocal
-from models import User, Faculty
-from roles import Role
-from passlib.hash import bcrypt
-import gsheets
-from sqlalchemy import select
-from models import Candidate
+
 
 @dp.callback_query(F.data == "import_faculty_data", HasRoleFilter([Role.ADMIN]))
 async def import_faculty_data_handler(callback: CallbackQuery):
@@ -76,64 +77,18 @@ async def import_faculty_data_handler(callback: CallbackQuery):
         if not faculty or not faculty.google_sheet_url:
             await callback.answer("Ошибка: не найдена Google-таблица факультета.", show_alert=True)
             return
-        # Открываем таблицу
-        try:
-            sh = gsheets.open_sheet_by_url("bot/credentials.json", faculty.google_sheet_url)
-        except Exception as e:
-            await callback.answer(f"Ошибка доступа к таблице: {e}", show_alert=True)
-            return
-        added_candidates = 0
-        added_users = 0
-        # Парсим лист "Кандидаты"
-        try:
-            ws_candidates = sh.worksheet("Кандидаты")
-            rows = ws_candidates.get_all_values()[1:]  # пропускаем заголовок
-            for row in rows:
-                if len(row) < 3:
-                    continue
-                first_name, last_name, vk_id = row[:3]
-                # Проверяем, есть ли уже такой кандидат
-                candidate_exists = await session.execute(select(Candidate).where(Candidate.vk_id == vk_id))
-                if candidate_exists.scalar_one_or_none():
-                    continue
-                candidate = Candidate(
-                    first_name=first_name.strip(),
-                    last_name=last_name.strip(),
-                    vk_id=vk_id.strip(),
-                    faculty_id=faculty.id
-                )
-                session.add(candidate)
-                added_candidates += 1
-        except Exception as e:
-            await callback.answer(f"Ошибка чтения листа 'Кандидаты': {e}", show_alert=True)
-            return
-        # Парсим листы "Опытные собесеры" и "Не опытные собесеры"
-        for sheet_name, role in [("Опытные собесеры", Role.EXPERIENCED.value), ("Не опытные собесеры", Role.NEWBIE.value)]:
-            try:
-                ws = sh.worksheet(sheet_name)
-                rows = ws.get_all_values()[1:]  # пропускаем заголовок
-                for row in rows:
-                    if len(row) < 2:
-                        continue
-                    login, password = row[:2]
-                    # Проверяем, есть ли уже такой пользователь
-                    user_exists = await session.execute(select(User).where(User.username == login))
-                    if user_exists.scalar_one_or_none():
-                        continue
-                    user = User(
-                        username=login.strip(),
-                        password_hash=bcrypt.hash(password.strip()),
-                        faculty_id=faculty.id,
-                        role=role,
-                        is_active=True
-                    )
-                    session.add(user)
-                    added_users += 1
-            except Exception as e:
-                await callback.answer(f"Ошибка чтения листа '{sheet_name}': {e}", show_alert=True)
-                return
-        await session.commit()
-        await callback.answer(f"✅ Импорт завершён! Кандидатов добавлено: {added_candidates}, пользователей: {added_users}", show_alert=True)
+
+        # Запускаем импорт в фоне, чтобы не блокировать Telegram
+        await callback.answer("⏳ Импорт данных запущен! Результат придёт в личные сообщения.", show_alert=True)
+
+        async def do_import():
+            added_candidates, added_users, error = await gsheets.import_faculty_spreadsheet(faculty.google_sheet_url, session)
+            if error:
+                await bot.send_message(callback.from_user.id, f"❌ Ошибка при импорте: {error}")
+            else:
+                await bot.send_message(callback.from_user.id, f"✅ Импорт завершён! Кандидатов добавлено: {added_candidates}, пользователей: {added_users}")
+
+        asyncio.create_task(do_import())
 
 
 @dp.message(Command("start"))
