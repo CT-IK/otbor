@@ -1,5 +1,11 @@
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, ForeignKey
+
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import String, Integer, Boolean, ForeignKey, Text
+
+
+# Базовый класс для всех моделей
+class Base(DeclarativeBase):
+    pass
 
 
 class Candidate(Base):
