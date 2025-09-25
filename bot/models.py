@@ -1,4 +1,3 @@
-
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, Boolean, ForeignKey, Text
 
@@ -6,6 +5,13 @@ from sqlalchemy import String, Integer, Boolean, ForeignKey, Text
 # Базовый класс для всех моделей
 class Base(DeclarativeBase):
     pass
+
+class Faculty(Base):
+    __tablename__ = "faculties"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(150), unique=True)
+    google_sheet_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Candidate(Base):
@@ -17,13 +23,6 @@ class Candidate(Base):
     vk_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     tg_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True)
     faculty_id: Mapped[int] = mapped_column(ForeignKey("faculties.id"), nullable=True)
-
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import String, Integer, Boolean, ForeignKey, Text
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 class User(Base):
@@ -39,12 +38,6 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean)
 
 
-class Faculty(Base):
-    __tablename__ = "faculties"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(150), unique=True)
-    google_sheet_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class AdminInvite(Base):
