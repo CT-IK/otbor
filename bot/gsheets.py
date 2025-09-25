@@ -94,6 +94,7 @@ async def import_faculty_spreadsheet(sheet_url: str, session, credentials_path: 
                     is_active=True
                 )
                 session.add(user)
+                await session.flush()
                 added_users += 1
         except Exception as e:
             return (added_candidates, added_users, f"Ошибка чтения листа '{sheet_name}': {e}")
